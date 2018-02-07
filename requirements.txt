@@ -2,3 +2,4 @@ gym==0.9.4
 keras==2.0.8
 keras-rl==0.4.0
 pyyaml==3.12
+tensorflow==1.3.0
