@@ -20,9 +20,10 @@ class Talk(Env):
         kb = yaml.load(open("conf/kb.yml", "r", encoding="utf-8"))
         self.actions = kb.get("actions", [])
         assert len(self.actions) > 0, "no actions!"
-        print(type(kb))
 
-        # TODO: corpus
+        self.done_action = len(self.actions) - 1
+
+        # TODO: corpusme
         hiragana = [chr(i) for i in range(12353, 12436)] + ["？"]
         self.tokenizer = Tokenizer()
         self.tokenizer.fit_on_texts(hiragana)
@@ -34,23 +35,22 @@ class Talk(Env):
 
     def step(self, action):
         reply = self.actions[action]
-        print(action)
-        is_api_call = reply.startswith("<")
-        print("{0} ({1})".format(reply, is_api_call))
+        is_listen = reply == "<listen>"
+        print(reply)
 
         # TODO: define rewards
         fbk = input("feedback [1 -> 1, -1 -> empty]: ")
         print("feedback = {0}".format(fbk if len(fbk) > 0 else "empty"))
         if len(fbk) > 0:
             reward = 1.0
-            done = False
+            done = False if action != self.done_action else True
         else:
             reward = 0.0
             done = True
 
         # TODO: define entities
         if not done:
-            msg = reply if is_api_call else input("user: ")
+            msg = input("user: ") if is_listen else reply
             while len(msg) == 0:
                 print("empty message!")
                 msg = input("user: ")
