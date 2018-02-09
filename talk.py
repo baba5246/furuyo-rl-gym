@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import numpy as np
 import yaml
+import MeCab
 
 from gym import spaces
 from gym.core import Env
@@ -12,26 +14,31 @@ from keras.preprocessing import sequence
 
 class Talk(Env):
 
-    INPUT_MAXLEN = 5
-    INPUT_MAXVOC = 1000
+    INPUT_MAXLEN = 20
+    CONTEXT_LENGTH = 3
 
     def __init__(self):
         # load knowledge base
         kb = yaml.load(open("conf/kb.yml", "r", encoding="utf-8"))
         self.actions = kb.get("actions", [])
         assert len(self.actions) > 0, "no actions!"
-
         self.done_action = len(self.actions) - 1
 
-        # TODO: corpusme
-        hiragana = [chr(i) for i in range(12353, 12436)] + ["？"]
+        # tokenizer
+        self.mt = MeCab.Tagger("-Owakati")
+        corpus = open("resources/actions.txt", "r", encoding="utf-8").readlines()
+        texts = [self.mt.parse(c) for c in corpus]
         self.tokenizer = Tokenizer()
-        self.tokenizer.fit_on_texts(hiragana)
+        self.tokenizer.fit_on_texts(texts)
 
+        # action and observation space
         self.action_space = spaces.Discrete(len(self.actions))
         self.observation_space = spaces.Box(low=0,
                                             high=len(self.tokenizer.word_index),
                                             shape=(Talk.INPUT_MAXLEN,))
+        # contexts
+        self.utter_count = 0
+        self.states = [np.zeros(self.INPUT_MAXLEN) for _ in range(self.CONTEXT_LENGTH)]
 
     def step(self, action):
         reply = self.actions[action]
@@ -42,7 +49,7 @@ class Talk(Env):
         fbk = input("feedback [1 -> 1, -1 -> empty]: ")
         print("feedback = {0}".format(fbk if len(fbk) > 0 else "empty"))
         if len(fbk) > 0:
-            reward = 1.0
+            reward = 1.0 * (self.utter_count + 1)
             done = False if action != self.done_action else True
         else:
             reward = 0.0
@@ -50,23 +57,29 @@ class Talk(Env):
 
         # TODO: define entities
         if not done:
+            self.utter_count += 1
             msg = input("user: ") if is_listen else reply
             while len(msg) == 0:
                 print("empty message!")
                 msg = input("user: ")
             print("user msg = {0}".format(msg))
-            seq = self.tokenizer.texts_to_sequences(msg)
+            seq = self.tokenizer.texts_to_sequences([self.mt.parse(msg)])
             state = sequence.pad_sequences(seq, maxlen=Talk.INPUT_MAXLEN)[0]
+            print(state)
+            self.states = [self.states[i-1] if i > 0 else state for i in reversed(range(self.CONTEXT_LENGTH))]
         else:
             msg = "<user_login>"
             seq = self.tokenizer.texts_to_sequences(msg)
             state = sequence.pad_sequences(seq, maxlen=Talk.INPUT_MAXLEN)[0]
+            self.states = [np.zeros(self.INPUT_MAXLEN) if i > 0 else state for i in reversed(range(self.CONTEXT_LENGTH))]
 
-        return state, reward, done, {}
+        return self.states, reward, done, {}
 
     def _reset(self):
+        self.utter_count = 0
         msg = "<user_login>"
         print("user msg = {0}".format(msg))
         seq = self.tokenizer.texts_to_sequences(msg)
         state = sequence.pad_sequences(seq, maxlen=Talk.INPUT_MAXLEN)[0]
-        return state
+        self.states = [np.zeros(self.INPUT_MAXLEN) if i > 0 else state for i in reversed(range(self.CONTEXT_LENGTH))]
+        return self.states

@@ -3,8 +3,11 @@
 
 from talk import Talk
 
-from keras.models import Sequential
-from keras.layers import Dense, Flatten, Embedding
+import tensorflow as tf
+from keras import backend as K
+from keras.layers import Input, Lambda, Dense, Embedding, LSTM
+from keras.layers.pooling import GlobalMaxPooling1D
+from keras.models import Model
 from keras.optimizers import Adam
 
 from rl.agents.dqn import DQNAgent
@@ -20,25 +23,28 @@ if __name__ == "__main__":
     # env.seed(123)
     nb_actions = env.action_space.n
 
-    # model parameters
-    max_features = len(env.tokenizer.word_index)
-    embedding_dims = 10
-    input_length = env.INPUT_MAXLEN
+    # Set model parameters
+    MAX_VOCABULARY = len(env.tokenizer.word_index)
+    EMBEDDING_DIM = 16
+    LSTM_OUTPUT_DIM = 32
+    DROPOUT_RATE = 0.20
 
-    # Next, we build a very simple model regardless of the dueling architecture
-    # if you enable dueling network in DQN , DQN will build a dueling network base on your model automatically
-    # Also, you can build a dueling network by yourself and turn off the dueling network in DQN.
-    # TODO: change models
-    model = Sequential()
-    model.add(Embedding(max_features,
-                        embedding_dims,
-                        input_shape=(1,) + env.observation_space.shape))
-    model.add(Dense(16, activation="relu"))
-    model.add(Dense(16, activation="relu"))
-    model.add(Dense(16, activation="relu"))
-    model.add(Flatten())
-    model.add(Dense(nb_actions, activation='linear'))
-    print(model.summary())
+    # Build models
+    inputs = Input(shape=(1, env.CONTEXT_LENGTH, env.INPUT_MAXLEN))
+    unstack_inputs = Lambda(lambda x: tf.unstack(x, axis=2))(inputs)
+    sequence_inputs = [Lambda(lambda x: tf.unstack(x, axis=1))(u) for u in unstack_inputs]
+    embeds = [Embedding(output_dim=EMBEDDING_DIM,
+                        input_dim=MAX_VOCABULARY,
+                        input_length=env.INPUT_MAXLEN)(s)
+              for s in sequence_inputs]
+    lstms = [LSTM(LSTM_OUTPUT_DIM, return_sequences=True)(e) for e in embeds]
+    max_pools = [GlobalMaxPooling1D()(l) for l in lstms]
+    stacked = Lambda(lambda x: K.stack(x, axis=1))(max_pools)
+    context_lstm = LSTM(LSTM_OUTPUT_DIM, dropout=DROPOUT_RATE, return_sequences=True)(stacked)
+    context_max_pool = GlobalMaxPooling1D()(context_lstm)
+    preds = Dense(nb_actions, activation='softmax')(context_max_pool)
+    historical_lstm = Model(inputs, preds)
+    print(historical_lstm.summary())
 
     # Finally, we configure and compile our agent. You can use every built-in Keras optimizer and
     # even the metrics!
@@ -46,14 +52,14 @@ if __name__ == "__main__":
     policy = BoltzmannQPolicy()
     # enable the dueling network
     # you can specify the dueling_type to one of {'avg','max','naive'}
-    dqn = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=10,
+    dqn = DQNAgent(model=historical_lstm, nb_actions=nb_actions, memory=memory, nb_steps_warmup=10,
                    enable_dueling_network=False, dueling_type='avg', target_model_update=1e-2, policy=policy)
     dqn.compile(Adam(lr=1e-3), metrics=['mae'])
 
     # Okay, now it's time to learn something! We visualize the training here for show, but this
     # slows down training quite a lot. You can always safely abort the training prematurely using
     # Ctrl + C.
-    dqn.fit(env, nb_steps=100, visualize=False, verbose=2)
+    dqn.fit(env, nb_steps=1000, visualize=False, verbose=2)
 
     # After training is done, we save the final weights.
     dqn.save_weights('dqn_talk_weights.h5f', overwrite=True)
