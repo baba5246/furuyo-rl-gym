@@ -42,7 +42,9 @@ if __name__ == "__main__":
     stacked = Lambda(lambda x: K.stack(x, axis=1))(max_pools)
     context_lstm = LSTM(LSTM_OUTPUT_DIM, dropout=DROPOUT_RATE, return_sequences=True)(stacked)
     context_max_pool = GlobalMaxPooling1D()(context_lstm)
-    preds = Dense(nb_actions, activation='softmax')(context_max_pool)
+    context_ff1 = Dense(LSTM_OUTPUT_DIM)(context_max_pool)
+    context_ff2 = Dense(LSTM_OUTPUT_DIM)(context_ff1)
+    preds = Dense(nb_actions, activation='softmax')(context_ff2)
     historical_lstm = Model(inputs, preds)
     print(historical_lstm.summary())
 
