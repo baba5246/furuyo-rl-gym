@@ -3,7 +3,7 @@
 
 from talk import Talk
 
-import tensorflow as tf
+from tensorflow import unstack
 from keras import backend as K
 from keras.layers import Input, Lambda, Dense, Embedding, LSTM
 from keras.layers.pooling import GlobalMaxPooling1D
@@ -31,8 +31,8 @@ if __name__ == "__main__":
 
     # Build models
     inputs = Input(shape=(1, env.CONTEXT_LENGTH, env.INPUT_MAXLEN))
-    unstack_inputs = Lambda(lambda x: tf.unstack(x, axis=2))(inputs)
-    sequence_inputs = [Lambda(lambda x: tf.unstack(x, axis=1))(u) for u in unstack_inputs]
+    unstack_inputs = Lambda(lambda x, func=unstack: func(x, axis=2))(inputs)
+    sequence_inputs = [Lambda(lambda x, func=unstack: func(x, axis=1))(u) for u in unstack_inputs]
     embeds = [Embedding(output_dim=EMBEDDING_DIM,
                         input_dim=MAX_VOCABULARY,
                         input_length=env.INPUT_MAXLEN)(s)
