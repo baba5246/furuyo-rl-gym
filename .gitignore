@@ -1,0 +1,4 @@
+resources/w2v/*/*.bin
+resources/w2v/*/*.txt
+resources/w2v/*/*.model
+resources/w2v/*/*.npy
