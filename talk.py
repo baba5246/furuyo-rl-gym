@@ -42,7 +42,6 @@ class Talk(Env):
 
     def step(self, action):
         reply = self.actions[action]
-        is_listen = reply == "<listen>"
         print(reply)
 
         # TODO: define rewards
@@ -57,21 +56,17 @@ class Talk(Env):
 
         # TODO: define entities
         if not done:
-            self.utter_count += 1
-            msg = input("user: ") if is_listen else reply
+            msg = input("user: ") if reply == "<listen>" else reply
             while len(msg) == 0:
                 print("empty message!")
                 msg = input("user: ")
             print("user msg = {0}".format(msg))
             seq = self.tokenizer.texts_to_sequences([self.mt.parse(msg)])
             state = sequence.pad_sequences(seq, maxlen=Talk.INPUT_MAXLEN)[0]
-            print(state)
-            self.states = [self.states[i-1] if i > 0 else state for i in reversed(range(self.CONTEXT_LENGTH))]
-        else:
-            msg = "<user_login>"
-            seq = self.tokenizer.texts_to_sequences(msg)
-            state = sequence.pad_sequences(seq, maxlen=Talk.INPUT_MAXLEN)[0]
-            self.states = [np.zeros(self.INPUT_MAXLEN) if i > 0 else state for i in reversed(range(self.CONTEXT_LENGTH))]
+            self.states = [self.states[i+1] if i < self.CONTEXT_LENGTH - 1 else state
+                           for i in range(self.CONTEXT_LENGTH)]
+            self.utter_count += 1
+            print(self.utter_count, self.states, reward, done)
 
         return self.states, reward, done, {}
 
@@ -81,5 +76,7 @@ class Talk(Env):
         print("user msg = {0}".format(msg))
         seq = self.tokenizer.texts_to_sequences(msg)
         state = sequence.pad_sequences(seq, maxlen=Talk.INPUT_MAXLEN)[0]
-        self.states = [np.zeros(self.INPUT_MAXLEN) if i > 0 else state for i in reversed(range(self.CONTEXT_LENGTH))]
+        self.states = [np.zeros(self.INPUT_MAXLEN) if i > self.utter_count else state
+                       for i in reversed(range(self.CONTEXT_LENGTH))]
+        print(self.utter_count, self.states)
         return self.states
