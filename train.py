@@ -10,6 +10,9 @@ from keras.layers.pooling import GlobalMaxPooling1D
 from keras.models import Model
 from keras.optimizers import Adam
 
+import embedding
+import copy
+
 from rl.agents.dqn import DQNAgent
 from rl.policy import BoltzmannQPolicy
 from rl.memory import SequentialMemory
@@ -24,18 +27,20 @@ if __name__ == "__main__":
     nb_actions = env.action_space.n
 
     # Set model parameters
-    MAX_VOCABULARY = len(env.tokenizer.word_index)
     EMBEDDING_DIM = 16
     LSTM_OUTPUT_DIM = 32
     DROPOUT_RATE = 0.20
+
+    # Create embedding layers
+    w2v = embedding.load_w2v_model()
 
     # Build models
     inputs = Input(shape=(1, env.CONTEXT_LENGTH, env.INPUT_MAXLEN))
     unstack_inputs = Lambda(lambda x, func=unstack: func(x, axis=2))(inputs)
     sequence_inputs = [Lambda(lambda x, func=unstack: func(x, axis=1))(u) for u in unstack_inputs]
-    embeds = [Embedding(output_dim=EMBEDDING_DIM,
-                        input_dim=MAX_VOCABULARY,
-                        input_length=env.INPUT_MAXLEN)(s)
+    embeds = [embedding.create_embedding_layer(env.tokenizer.word_index,
+                                               w2v,
+                                               input_length=env.INPUT_MAXLEN)(s)
               for s in sequence_inputs]
     lstms = [LSTM(LSTM_OUTPUT_DIM, return_sequences=True)(e) for e in embeds]
     max_pools = [GlobalMaxPooling1D()(l) for l in lstms]
