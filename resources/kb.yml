@@ -1,0 +1,7 @@
+actions:
+  - 地名を教えてください
+  - <listen>
+  - ありがとうございます
+  - <get_zipcode_from_db>
+  - <get_weather>
+  - \{place_name\}は\{weather\}です

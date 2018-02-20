@@ -1,0 +1,8 @@
+answers:
+  東京の天気教えて: <get_zipcode_from_db>
+  天気教えて: 地名を教えてください
+  地名を教えてください: <listen>
+  東京: ありがとうございます
+  ありがとうございます: <get_zipcode_from_db>
+  <get_zipcode_from_db>: <get_weather>
+  <get_weather>: \{place_name\}は\{weather\}です
