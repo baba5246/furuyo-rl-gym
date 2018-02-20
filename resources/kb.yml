@@ -5,3 +5,6 @@ actions:
   - <get_zipcode_from_db>
   - <get_weather>
   - \{place_name\}は\{weather\}です
+
+entities:
+  dummy: dummy
