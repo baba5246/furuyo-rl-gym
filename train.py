@@ -35,7 +35,7 @@ if __name__ == "__main__":
     w2v = embedding.load_w2v_model()
 
     # Build models
-    input = Input(shape=(1, env.INPUT_MAXLEN))
+    input = Input(shape=(1, env.FEATURE_LENGTH))
     unstack = Lambda(lambda x, func=unstack: func(x, axis=1))(input)
     embed = Embedding(MAX_VOCABULARY, EMBEDDING_DIM)(unstack)
     lstm = LSTM(LSTM_OUTPUT_DIM, return_sequences=True)(embed)
@@ -68,17 +68,17 @@ if __name__ == "__main__":
     dqn = DQNAgent(model=historical_lstm,
                    nb_actions=nb_actions,
                    memory=memory,
-                   nb_steps_warmup=100,
+                   nb_steps_warmup=30,
                    enable_dueling_network=False,
                    dueling_type='avg',
                    target_model_update=1e-2,
                    policy=policy)
-    dqn.compile(Adam(lr=0.01), metrics=['mae'])
+    dqn.compile(RMSprop(lr=0.01), metrics=['mae'])
 
     # Okay, now it's time to learn something! We visualize the training here for show, but this
     # slows down training quite a lot. You can always safely abort the training prematurely using
     # Ctrl + C.
-    dqn.fit(env, nb_steps=500, visualize=False, verbose=2)
+    dqn.fit(env, nb_steps=200, visualize=False, verbose=2)
 
     # After training is done, we save the final weights.
     dqn.save_weights('dqn_talk_weights.h5f', overwrite=True)

@@ -1,10 +1,11 @@
 actions:
-  - 地名を教えてください
+  - どこの天気が知りたいですか？
   - <listen>
   - ありがとうございます
-  - <get_zipcode_from_db>
-  - <get_weather>
-  - \{place_name\}は\{weather\}です
+  - <get_address_from_db>
+  - \{address\}でよろしいですか？
+  - <get_weather_from_db>
+  - <get_weather_from_api>
+  - \{address\}は\{weather\}です
 
-entities:
-  dummy: dummy
+entities: {}
