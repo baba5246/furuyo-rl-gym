@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import numpy as np
+
 
 def extract(message):
-    if not message or type(message) != str:
+    if not message or type(message) != np.str_:
         return {}
     elif "東京" in message:
         return {"entity": "東京", "type": "place_name"}

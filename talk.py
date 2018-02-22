@@ -5,6 +5,7 @@ import numpy as np
 import yaml
 import MeCab
 import random
+import math
 
 from gym import spaces
 from gym.core import Env
@@ -18,6 +19,7 @@ from sklearn.feature_extraction import FeatureHasher
 import entity_extraction
 import functions
 import mounter
+import simulator
 
 import logging
 logger = logging.getLogger(__name__)
@@ -25,15 +27,14 @@ stream_log = logging.StreamHandler()
 stream_log.setLevel(logging.DEBUG)
 stream_log.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s'))
 logger.addHandler(stream_log)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class Talk(Env):
 
-    INPUT_MAXLEN = 10
-    N_HASHER_FEATURE = 10
-    N_CONTEXT_FEATURE = 2
-    FEATURE_LENGTH = INPUT_MAXLEN + N_HASHER_FEATURE + N_CONTEXT_FEATURE
+    FEATURE_LENGTH = 10
+    N_HASHER_FEATURE = int(math.ceil(FEATURE_LENGTH/2))
+    N_CONTEXT_FEATURE = int(math.floor(FEATURE_LENGTH/2))
     SPEAKER_USER = "user"
     SPEAKER_BOT = "bot"
 
@@ -65,32 +66,35 @@ class Talk(Env):
         # action and observation space
         self.action_space = spaces.Discrete(len(self.actions))
         self.observation_space = spaces.Box(low=0,
-                                            high=len(self.tokenizer.word_index),
-                                            shape=(Talk.FEATURE_LENGTH,))
+                                            high=len(self.tokenizer.word_index) + 1,
+                                            shape=(2, Talk.FEATURE_LENGTH))
 
         # simulator
         self.answers = yaml.load(open("resources/answers.yml", "r", encoding="utf-8"))
         self.answers = self.answers["answers"]
 
     def step(self, action):
-
         # get reply from actions
         self.reply = self.actions[action]
-        print(self.reply)
+        logger.info("selected action = " + self.reply)
 
         # compute reward and terminal
-        reward = self.compute_reward(self.message, self.reply, manual=True)
+        reward = self.compute_reward(self.message, self.reply, self.entities, manual=False)
         done = True if reward < 1.0 or action == self.done_action else False
 
         # environments if the dialogue continues
         if not done:
+            # extract entities
+            extracted = entity_extraction.extract(self.message)
+            if "entity" in extracted and "type" in extracted:
+                self.entities[extracted.get("type")] = extracted.get("entity")
+
             # do action
             if self.reply == "<listen>":
-                self.message = input("user: ")
-                while len(self.message) == 0:
-                    logger.warning("empty message!")
-                    self.message = input("user: ")
+                self.message = Talk.wait_user_input(self.message, self.reply, self.entities, manual=False)
                 self.speaker = Talk.SPEAKER_USER
+                if len(self.message) == 0:
+                    done = True
             elif self.reply.startswith("<") and self.reply.endswith(">"):
                 self.entities = functions.run_function(self.reply, self.entities)
                 self.message = self.reply
@@ -100,14 +104,9 @@ class Talk(Env):
                     self.message = mounter.mount(self.reply, self.entities)
                     self.speaker = Talk.SPEAKER_BOT
                 except KeyError as e:
-                    self.message = "Error:" + e.message
+                    self.message = "Error:" + str(e)
                     done = True
             logger.info("user msg = {0}".format(self.message))
-
-            # extract entities
-            extracted = entity_extraction.extract(self.message)
-            if "entity" in extracted and "type" in extracted:
-                self.entities[extracted.get("type")] = extracted.get("entity")
 
             # create feature vectors
             self.state = self.create_features(
@@ -119,6 +118,7 @@ class Talk(Env):
             self.utter_count += 1
             logger.info([self.utter_count, reward, done])
             logger.debug(self.state)
+            logger.info(self.entities)
 
         return self.state, reward, done, {}
 
@@ -129,10 +129,7 @@ class Talk(Env):
 
         # wait user input
         self.speaker = Talk.SPEAKER_USER
-        self.message = input("user: ")
-        while len(self.message) == 0:
-            logger.warning("empty message!")
-            self.message = input("user: ")
+        self.message = Talk.wait_user_input(None, None, self.entities, manual=False)
         logger.info("user msg = {0}".format(self.message))
 
         # extract entities
@@ -151,37 +148,40 @@ class Talk(Env):
 
         return self.state
 
-    # TODO: automatic input
-    def wait_user_input(self, reply, manual=False):
-        if reply == "どこの天気が知りたいですか？"
-            pass
+    @staticmethod
+    def wait_user_input(pre_message, reply, entities, manual=False):
+        if manual:
+            message = input("user: ")
+            while len(message) == 0:
+                logger.warning("empty message!")
+                message = input("user: ")
+        else:
+            message = simulator.message(pre_message, reply, entities)
+        return message
 
-    def compute_reward(self, message, reply, manual=False):
+    @staticmethod
+    def compute_reward(message, reply, entities, manual=False):
         if manual:
             feedback = input("feedback(correct -> 1 / wrong -> empty): ")
             reward = 1.0 if len(feedback) > 0 else 0.0
         else:
-            answer = self.answers.get(message)
-            assert answer, "unexpected user message!"
-            reward = 1.0 if reply == answer else 0.0
+            reward = simulator.reward(message, reply, entities)
         return reward
 
     def create_features(self, message, utter_count, speaker, entities):
         features = []
         # create word index sequence
         seq = self.tokenizer.texts_to_sequences([self.mt.parse(message)])
-        message_vector = sequence.pad_sequences(seq, maxlen=Talk.INPUT_MAXLEN)[0]
+        message_vector = sequence.pad_sequences(seq, maxlen=Talk.FEATURE_LENGTH)[0]
         features.append(message_vector)
         # create context vector
         context_vector = np.zeros(Talk.N_CONTEXT_FEATURE)
         context_vector[0] = utter_count
         context_vector[1] = 1 if speaker == "user" else 0
-        features.append(context_vector)
         # create entity vector
         entity_keys = Counter(list(entities.keys()))
         f = self.entity_hasher.transform([entity_keys])
         entiry_vector = f.toarray()[0]
-        features.append(entiry_vector)
-        features = [a for array in features for a in array]
+        features.append(np.r_[context_vector, entiry_vector].T)
         return features
 

@@ -4,6 +4,7 @@ actions:
   - ありがとうございます
   - <get_address_from_db>
   - \{address\}でよろしいですか？
+  - 別の言い方で再度入力してください
   - <get_weather_from_db>
   - <get_weather_from_api>
   - \{address\}は\{weather\}です

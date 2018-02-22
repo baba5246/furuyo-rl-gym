@@ -1,8 +1,13 @@
 answers:
   東京の天気教えて: <get_zipcode_from_db>
-  天気教えて: 地名を教えてください
-  地名を教えてください: <listen>
+  天気教えて: どこの天気が知りたいですか？
+  どこの天気が知りたいですか？: <listen>
   東京: ありがとうございます
-  ありがとうございます: <get_zipcode_from_db>
-  <get_zipcode_from_db>: <get_weather>
+  大阪: ありがとうございます
+  ありがとうございます: <get_address_from_db>
+  <get_address_from_db>: \{address\}でよろしいですか？
+  \{address\}でよろしいですか？: <listen>
+  はい: ありがとうございます
+  いいえ: 別の言い方で再度入力してください
+  別の言い方で再度入力してください:
   <get_weather>: \{place_name\}は\{weather\}です
