@@ -1,18 +1,24 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
-from datetime import datetime
-
 from talk import Talk
-
 import model
+
 from keras.optimizers import Adam, RMSprop
 
 from rl.agents.dqn import DQNAgent
 #from rl.policy import BoltzmannQPolicy, MaxBoltzmannQPolicy, BoltzmannGumbelQPolicy
 from rl.memory import SequentialMemory
 from policy import MaxBoltzmannQPolicy
+
+
+import logging
+logger = logging.getLogger(__name__)
+stream_log = logging.StreamHandler()
+stream_log.setLevel(logging.DEBUG)
+stream_log.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s'))
+logger.addHandler(stream_log)
+logger.setLevel(logging.INFO)
 
 
 if __name__ == "__main__":
@@ -26,7 +32,7 @@ if __name__ == "__main__":
 
     # Learning parameters
     TRAIN_EACH_STEP = 500
-    TRAIN_MAX_STEP = 1000
+    TRAIN_MAX_STEP = 15000
 
     # build DQN agent
     memory = SequentialMemory(limit=100, window_length=1)
@@ -41,15 +47,10 @@ if __name__ == "__main__":
                    policy=policy)
     dqn.compile(RMSprop(lr=0.01), metrics=['mae'])
 
-    # Training
-    dir_path = "weights/{0}".format(datetime.now().strftime("%Y%m%d-%H%M%S"))
-    os.makedirs(dir_path, exist_ok=True)
+    # evaluating
     slice = int(TRAIN_MAX_STEP/TRAIN_EACH_STEP)
     for s in range(slice):
-        if s > 0:
-            dqn.load_weights(dir_path + "/dqn_talk_weights_{slice}.h5f".format(slice=s-1))
-        dqn.fit(env, nb_steps=TRAIN_EACH_STEP, visualize=False, verbose=2)
-        dqn.save_weights(dir_path + "/dqn_talk_weights_{slice}.h5f".format(slice=s))
-
-    # Evaluating
-    dqn.test(env, nb_episodes=10, visualize=False)
+        logger.info("SLICE = {0}".format(s))
+        dqn.load_weights("weights/20180222-211054/dqn_talk_weights_{0}.h5f".format(s))
+        dqn.test(env, nb_episodes=10, visualize=False)
+        logger.info("")
