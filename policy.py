@@ -1,5 +1,6 @@
 import numpy as np
 from rl.policy import Policy
+import math
 
 import logging
 logger = logging.getLogger(__name__)
@@ -22,9 +23,11 @@ class MaxBoltzmannQPolicy(Policy):
         self.eps = eps
         self.tau = tau
         self.clip = clip
+        self.step = 0
 
     def select_action(self, q_values):
         assert q_values.ndim == 1
+        self.tau = 1/math.log(self.step + 1.1)
         logger.debug(q_values)
         q_values = q_values.astype('float64')
         nb_actions = q_values.shape[0]
@@ -35,6 +38,7 @@ class MaxBoltzmannQPolicy(Policy):
             action = np.random.choice(range(nb_actions), p=probs)
         else:
             action = np.argmax(q_values)
+        self.step += 1
         return action
 
     def get_config(self):

@@ -38,7 +38,7 @@ class Talk(Env):
     SPEAKER_USER = "user"
     SPEAKER_BOT = "bot"
 
-    def __init__(self):
+    def __init__(self, manual=False):
         # actions and entities
         kb = yaml.load(open("resources/kb.yml", "r", encoding="utf-8"))
         self.actions = kb.get("actions", [])
@@ -56,7 +56,7 @@ class Talk(Env):
         # tokenizer
         self.mt = MeCab.Tagger("-Owakati")
         logs = open("resources/dialogue.log", "r", encoding="utf-8").readlines()
-        wakati_logs = [self.mt.parse(l) for l in logs]
+        wakati_logs = [self.mt.parse(l) if not l.startswith("<") else l.strip() for l in logs]
         self.tokenizer = Tokenizer()
         self.tokenizer.fit_on_texts(wakati_logs)
 
@@ -70,6 +70,7 @@ class Talk(Env):
                                             shape=(2, Talk.FEATURE_LENGTH))
 
         # simulator
+        self.manual = manual
         self.answers = yaml.load(open("resources/answers.yml", "r", encoding="utf-8"))
         self.answers = self.answers["answers"]
 
@@ -79,7 +80,7 @@ class Talk(Env):
         logger.info("selected action = " + self.reply)
 
         # compute reward and terminal
-        reward = self.compute_reward(self.message, self.reply, self.entities, manual=False)
+        reward = self.compute_reward(self.message, self.reply, self.entities)
         done = True if reward < 1.0 or action == self.done_action else False
 
         # environments if the dialogue continues
@@ -91,7 +92,7 @@ class Talk(Env):
 
             # do action
             if self.reply == "<listen>":
-                self.message = Talk.wait_user_input(self.message, self.reply, self.entities, manual=False)
+                self.message = self.wait_user_input(self.message, self.reply, self.entities)
                 self.speaker = Talk.SPEAKER_USER
                 if len(self.message) == 0:
                     done = True
@@ -129,7 +130,7 @@ class Talk(Env):
 
         # wait user input
         self.speaker = Talk.SPEAKER_USER
-        self.message = Talk.wait_user_input(None, None, self.entities, manual=False)
+        self.message = self.wait_user_input(None, None, self.entities)
         logger.info("user msg = {0}".format(self.message))
 
         # extract entities
@@ -148,9 +149,8 @@ class Talk(Env):
 
         return self.state
 
-    @staticmethod
-    def wait_user_input(pre_message, reply, entities, manual=False):
-        if manual:
+    def wait_user_input(self, pre_message, reply, entities):
+        if self.manual:
             message = input("user: ")
             while len(message) == 0:
                 logger.warning("empty message!")
@@ -159,9 +159,8 @@ class Talk(Env):
             message = simulator.message(pre_message, reply, entities)
         return message
 
-    @staticmethod
-    def compute_reward(message, reply, entities, manual=False):
-        if manual:
+    def compute_reward(self, message, reply, entities):
+        if self.manual:
             feedback = input("feedback(correct -> 1 / wrong -> empty): ")
             reward = 1.0 if len(feedback) > 0 else 0.0
         else:

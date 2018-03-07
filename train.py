@@ -25,8 +25,8 @@ if __name__ == "__main__":
     dqn_model = model.build_lstm_ff(env)
 
     # Learning parameters
-    TRAIN_EACH_STEP = 500
-    TRAIN_MAX_STEP = 1000
+    TRAIN_EACH_STEP =2000
+    TRAIN_MAX_STEP = 2000
 
     # build DQN agent
     memory = SequentialMemory(limit=100, window_length=1)

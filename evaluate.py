@@ -24,15 +24,15 @@ logger.setLevel(logging.INFO)
 if __name__ == "__main__":
 
     # Get the environment and extract the number of actions.
-    env = Talk()
+    env = Talk(manual=True)
     nb_actions = env.action_space.n
 
     # Build models
     dqn_model = model.build_lstm_ff(env)
 
     # Learning parameters
-    TRAIN_EACH_STEP = 500
-    TRAIN_MAX_STEP = 15000
+    TRAIN_EACH_STEP = 2000
+    TRAIN_MAX_STEP = 2000
 
     # build DQN agent
     memory = SequentialMemory(limit=100, window_length=1)
@@ -51,6 +51,6 @@ if __name__ == "__main__":
     slice = int(TRAIN_MAX_STEP/TRAIN_EACH_STEP)
     for s in range(slice):
         logger.info("SLICE = {0}".format(s))
-        dqn.load_weights("weights/20180222-211054/dqn_talk_weights_{0}.h5f".format(s))
-        dqn.test(env, nb_episodes=10, visualize=False)
+        dqn.load_weights("weights/20180307-171908/dqn_talk_weights_{0}.h5f".format(s))
+        dqn.test(env, nb_episodes=100, visualize=False)
         logger.info("")

@@ -9,29 +9,29 @@ def message(pre_message, reply, entities):
         choices = [
             "天気教えて",
             "東京の天気を教えて",
-            # "大阪の天気は？"
+            "大阪の天気は？"
         ]
     elif pre_message == "どこの天気が知りたいですか？" and reply == "<listen>":
         choices = [
             "東京",
             "東京の天気",
-            # "大阪",
-            # "大阪の天気"
+            "大阪",
+            "大阪の天気"
         ]
     elif "でよろしいですか？" in pre_message and reply == "<listen>":
         choices = [
             "はい",
             "いいえ",
-            # "OK",
-            # "ちがう",
-            # "他のところがいい"
+            "OK",
+            "ちがう",
+            "他のところがいい"
         ]
     elif pre_message == "別の言い方で再度入力してください" and reply == "<listen>":
         choices = [
             "東京",
             "東京の天気",
-            # "大阪",
-            # "大阪の天気"
+            "大阪",
+            "大阪の天気"
         ]
     else:
         choices =[

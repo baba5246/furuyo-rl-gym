@@ -5,7 +5,7 @@ import numpy as np
 
 
 def extract(message):
-    if not message or type(message) != np.str_:
+    if not message or (type(message) != np.str_ and type(message) != str):
         return {}
     elif "東京" in message:
         return {"entity": "東京", "type": "place_name"}
